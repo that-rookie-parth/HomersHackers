@@ -1,0 +1,38 @@
+[
+  {
+    "type": "Footer",
+    "text": "RFP 25-008",
+    "metadata": {
+      "coordinates": {
+        "points": [
+          [
+            72.024,
+            749.80992
+          ],
+          [
+            72.024,
+            758.92992
+          ],
+          [
+            121.85,
+            758.92992
+          ],
+          [
+            121.85,
+            749.80992
+          ]
+        ],
+        "system": "PixelSpace",
+        "layout_width": 612.0,
+        "layout_height": 792.0
+      },
+      "file_directory": "data",
+      "filename": "ELIGIBLE_RFP_1.pdf",
+      "languages": [
+        "eng"
+      ],
+      "last_modified": "2025-04-05T18:12:44",
+      "page_number": 1,
+      "filetype": "application/pdf"
+    }
+  },

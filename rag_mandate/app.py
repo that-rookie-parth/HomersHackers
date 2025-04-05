@@ -11,7 +11,9 @@ from utils.data_ingestion import extract_text_from_pdf
 load_dotenv()
 
 
-llm = ChatGroq(model="llama-3.1-8b-instant", api_key=os.environ.get("GROQ_API_KEY"))
+llm = ChatGroq(
+    model="qwen-2.5-32b", temperature=0.25, api_key=os.environ.get("GROQ_API_KEY")
+)
 embeddings_model = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-mpnet-base-v2"
 )
@@ -36,18 +38,25 @@ def find_similar_chunks(query: str, texts, vectors, top_k=5):
 
 def analyze_rfp(relevant_chunks):
     context = "\n\n".join(relevant_chunks)
-    query = "Years of Experience in Temporary staffing, W-9 Form, qualifications, certifications, licenses"
+    query = "Years of Experience in Temporary staffing, Company Length of Existence, W-9 Form, qualifications, certifications, licenses"
     messages = [
         (
             "system",
-            "You are a helpful assistant. Given a context from an RFP document, check if the following information is available:\n"
-            "- Is there any mention of 'Years of Experience in Temporary staffing'? If yes, is the experience **less than 7 years**?\n"
-            "- Is there any mention of a 'W-9 Form'?\n"
-            "- Is there any mention of Insurance Certificates?\n"
-            "- Is there any mention of 'Company Length of Existence'?\n"
-            "- Is there any mention of 'Licenses'?\n"
-            "Look for the specific keywords and do not mix up"
-            "Respond with clear yes/no answers after complete analysis, and mark missing requirements clearly in red using markdown.",
+            """You are a highly precise assistant helping evaluate RFP documents. Your job is to locate and report on specific information ONLY if mentioned explicitly in the context.
+
+            When analyzing, follow these rules:
+            - Look **only** for exact phrases or close variations. Do NOT infer or generalize.
+            - Do not confuse **Temporary Staffing** with **Company Length of Existence**.
+
+            Criteria to check:
+            1. Is there any mention of **Years of Experience in Temporary staffing**? If yes, is the experience required less than 7 years?
+            2. Is there any mention of a **W-9 Form**?
+            3. Is there any mention of **Insurance Certificates**?
+            4. Is there any mention of **Company Length of Existence** (how long the company has existed)?
+            5. Is there any mention of **Licenses, Certifications, or Registrations**?
+
+            Your response should answer each question clearly in Yes or No, in markdown format.
+            """,
         ),
         ("developer", f"{query}\n\nContext:\n{context}"),
     ]
@@ -64,12 +73,11 @@ if uploaded_file is not None:
         rfp_text = extract_text_from_pdf(uploaded_file)
         chunks, vectors = chunk_and_embed(rfp_text)
         top_chunks = find_similar_chunks(
-            "Years of Experience, W-9 Form, qualifications, certifications, licenses",
+            "Years of Experience in Temporary staffing, Company Length of Existence, W-9 Form, qualifications, certifications, licenses",
             chunks,
             np.array(vectors),
         )
         response = analyze_rfp(top_chunks)
 
     st.success("Analysis complete!")
-    st.subheader("✅ AI Assistant's Evaluation")
-    st.markdown(response.content.strip())
+    st.markdown(response.content.strip(), unsafe_allow_html=True)

@@ -4,23 +4,34 @@ import numpy as np
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
-
-from data_ingestion import extract_text_from_pdf
-from rag_mandate.utils.mmr import mmr_select
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from utils.data_ingestion import extract_text_from_pdf
 
 load_dotenv()
 
 
-llm = ChatGroq(
-    model="deepseek-r1-distill-llama-70b", api_key=os.environ.get("GROQ_API_KEY")
+llm = ChatGroq(model="llama-3.1-8b-instant", api_key=os.environ.get("GROQ_API_KEY"))
+embeddings_model = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-mpnet-base-v2"
 )
 
 
-def find_similar_chunks(query: str, texts, vectors, top_k=5, lambda_param=0.5):
+def chunk_and_embed(text: str):
+    splitter = RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=20)
+    docs = splitter.create_documents([text])
+    texts = [doc.page_content for doc in docs]
+    vectors = embeddings_model.embed_documents(texts)
+    return texts, vectors
+
+
+def find_similar_chunks(query: str, texts, vectors, top_k=5):
     query_vec = embeddings_model.embed_query(query)
-    return mmr_select(
-        query_vec, np.array(vectors), texts, top_k=top_k, lambda_param=lambda_param
+    similarities = np.dot(vectors, query_vec) / (
+        np.linalg.norm(vectors, axis=1) * np.linalg.norm(query_vec) + 1e-10
     )
+    top_indices = np.argsort(similarities)[::-1][:top_k]
+    return [texts[i] for i in top_indices]
 
 
 def analyze_rfp(relevant_chunks):
@@ -35,6 +46,7 @@ def analyze_rfp(relevant_chunks):
             "- Is there any mention of Insurance Certificates?\n"
             "- Is there any mention of 'Company Length of Existence'?\n"
             "- Is there any mention of 'Licenses'?\n"
+            "Look for the specific keywords and do not mix up"
             "Respond with clear yes/no answers after complete analysis, and mark missing requirements clearly in red using markdown.",
         ),
         ("developer", f"{query}\n\nContext:\n{context}"),
@@ -61,4 +73,5 @@ if uploaded_file is not None:
         response = analyze_rfp(top_chunks)
 
     st.success("Analysis complete!")
+    st.subheader("✅ AI Assistant's Evaluation")
     st.markdown(response.content.strip())

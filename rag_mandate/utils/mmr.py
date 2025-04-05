@@ -6,7 +6,7 @@ def mmr_select(query_vec, doc_vecs, texts, top_k=5, lambda_param=0.5):
     selected_indices = []
 
     similarities = np.dot(doc_vecs, query_vec) / (
-        np.linalg.norm(doc_vecs, axis=1) * np.linalg.norm(query_vec)
+        np.linalg.norm(doc_vecs, axis=1) * np.linalg.norm(query_vec) + 1e-10
     )
 
     candidates = list(range(len(doc_vecs)))

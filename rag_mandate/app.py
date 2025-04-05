@@ -84,7 +84,6 @@ builder.add_edge("generate", END)
 graph = builder.compile()
 
 st.set_page_config(page_title="RFP Analyzer", layout="centered")
-st.title("📄 RFP PDF Analyzer")
 
 uploaded_file = st.file_uploader("Upload your RFP PDF", type=["pdf"])
 

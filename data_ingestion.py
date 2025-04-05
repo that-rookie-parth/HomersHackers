@@ -1,3 +1,5 @@
+import re
+
 import pandas as pd
 import pdfplumber
 
@@ -25,6 +27,23 @@ def load_company_data(csv_path):
         return pd.DataFrame()
 
 
+def clean_rfp_text(raw_text: str) -> str:
+    """
+    Clean the raw RFP text by removing noise and normalizing it.
+
+    Args:
+        raw_text (str): Raw text extracted from the RFP PDF.
+
+    Returns:
+        str: Cleaned text ready for chunking.
+    """
+    cleaned_text = re.sub(r"\s+", " ", raw_text).strip()
+    cleaned_text = re.sub(r"Page \d+|\d+ of \d+", "", cleaned_text)
+    cleaned_text = re.sub(r"[^\w\s.,;:-]", "", cleaned_text)
+
+    return cleaned_text
+
+
 if __name__ == "__main__":
     rfp_path = "./data/ELIGIBLE_RFP_2.pdf"
     company_csv_path = "./data/company_data.csv"
@@ -42,3 +61,11 @@ if __name__ == "__main__":
         print(company_data.head())
     else:
         print("No company data loaded.")
+
+    raw_rfp_text = extract_text_from_pdf(rfp_path)
+    company_df = load_company_data(company_csv_path)
+
+    cleaned_rfp = clean_rfp_text(raw_rfp_text)
+
+    print("Cleaned RFP Excerpt:")
+    print(cleaned_rfp[:500])

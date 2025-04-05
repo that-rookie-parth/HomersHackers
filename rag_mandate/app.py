@@ -54,10 +54,8 @@ def analyze_rfp(relevant_chunks):
     return llm.invoke(messages)
 
 
-# Streamlit UI
 st.set_page_config(page_title="RFP Analyzer", layout="centered")
 st.title("📄 RFP PDF Analyzer")
-st.markdown("Upload an RFP PDF file to analyze if it meets key criteria.")
 
 uploaded_file = st.file_uploader("Upload your RFP PDF", type=["pdf"])
 

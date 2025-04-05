@@ -1,0 +1,110 @@
+{
+    "Company Legal Name": {
+        "requirement_value": "FirstStaff Workforce Solutions, LLC",
+        "result": "Status: \u2705 Compliant  \nReason: The document includes the \"Company Legal Name\" as \"Consultadd Inc.\" which satisfies the requirement."
+    },
+    "Principal Business Address": {
+        "requirement_value": "3105 Maple Avenue, Suite 1200, Dallas, TX 75201",
+        "result": "Status: \u2705 Compliant  \nReason: The document includes a section that explicitly asks for the address of the specific office responsible for performing the work, which satisfies the requirement for a \"Principal Business Address.\""
+    },
+    "Phone Number": {
+        "requirement_value": "(214) 832-4455",
+        "result": "Status: \u2705 Compliant  \nReason: The document includes a clearly stated phone number: \"Telephone Number: 209-279-9621.\" This satisfies the requirement for a phone number."
+    },
+    "Fax Number": {
+        "requirement_value": "(214) 832-4460",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not contain any mention of a fax number. It only provides a phone number and email address, which do not satisfy the requirement for a fax number."
+    },
+    "Email Address": {
+        "requirement_value": "proposals@firststaffsolutions.com",
+        "result": "Status: \u26a0\ufe0f Partially Compliant  \nReason: The document contains a mention of an email address formatted as \"Email: e-verifydhs.gov.\" However, it appears to be missing the \"@\" symbol, which is essential for a valid email address. Therefore, while there is an attempt to provide an email address, it does not meet the standard requirement for a valid email format."
+    },
+    "Authorized Representative": {
+        "requirement_value": "Meredith Chan, Director of Contracts",
+        "result": "Status: \u2705 Compliant  \nReason: The document includes a section with the title \"Authorized Representative,\" which contains the name and signature of the authorized representative, Bharat Bhate, as well as his title (Founder President) and the date. This satisfies the requirement for an \"Authorized Representative\" as specified."
+    },
+    "Authorized Representative Phone": {
+        "requirement_value": "(212) 555-0199",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not include any mention of an \"Authorized Representative Phone\" number, which is a specific requirement stated. While it contains the names, signatures, and other details of the authorized representatives, the absence of a phone number means it does not fulfill the requirement."
+    },
+    "Signature": {
+        "requirement_value": "Meredith Chan (signed manually)",
+        "result": "Status: \u2705 Compliant  \nReason: The document includes an \"Authorized Signature\" section where Bharat Bhate has signed and printed his name as the Authorized Representative. This fulfills the requirement for a signature as specified."
+    },
+    "Company Length of Existence": {
+        "requirement_value": "9 years",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not provide any information regarding the \"Company Length of Existence.\" There are sections discussing qualifications, experience, and references, but none specify how long the company has been in operation, which is essential to meet the requirement."
+    },
+    "Years of Experience in Temp Staffing": {
+        "requirement_value": "7 years",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not mention any specific years of experience in temp staffing. It focuses on qualifications related to school district information technology audits and does not provide information regarding experience in temp staffing, which is a key requirement."
+    },
+    "DUNS Number": {
+        "requirement_value": "07-842-1490",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not mention a DUNS Number or provide any information related to it. The requirement for a DUNS Number is not addressed in any section of the provided text."
+    },
+    "CAGE Code": {
+        "requirement_value": "8J4T7",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not mention a \"CAGE Code\" anywhere in the provided text. A CAGE Code is a specific identifier used in government contracting, and its absence means the document does not fulfill the requirement."
+    },
+    "SAM.gov Registration Date": {
+        "requirement_value": "03/01/2022",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not contain any information regarding the \"SAM.gov Registration Date.\" There are mentions of E-Verify documentation and other contractual details, but there is no reference to SAM.gov registration or its date, which is a specific requirement."
+    },
+    "NAICS Codes": {
+        "requirement_value": "561320 \u2013 Temporary Help Services; 541611 \u2013 Admin Management",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not contain any NAICS (North American Industry Classification System) codes, which are necessary to fulfill the specified requirement. The content primarily discusses E-Verify documentation and business entity definitions but does not reference or include any NAICS codes."
+    },
+    "State of Incorporation": {
+        "requirement_value": "Delaware",
+        "result": "Status: \u2705 Compliant  \nReason: The document explicitly states the name of the business entity, \"Consultadd Inc.,\" which satisfies the requirement for the \"State of Incorporation.\" It indicates that the entity is enrolled in the E-Verify federal work authorization program and provides the necessary affirmation regarding its compliance with the relevant Missouri statutes. The inclusion of the business entity's name confirms its incorporation status, thus fulfilling the requirement."
+    },
+    "Bank Letter of Creditworthiness": {
+        "requirement_value": "Not Available",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not contain any mention of a \"Bank Letter of Creditworthiness.\" Instead, it discusses various requirements related to insurance, taxes, and qualifications for proposals, but does not address the specific requirement for a bank letter that verifies the financial credibility of the proposer."
+    },
+    "State Registration Number": {
+        "requirement_value": "SRN-DE-0923847",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not contain a \"State Registration Number.\" While it includes various identifiers such as a Contractor's Tax Identification Number and an E-Verify Company ID Number, it lacks the specific information required by the stated requirement."
+    },
+    "Services Provided": {
+        "requirement_value": "Administrative, IT, Legal & Credentialing Staffing",
+        "result": "Status: \u2705 Compliant  \nReason: The document provides a detailed description of the services offered, including assessments of technology infrastructure, device management, network evaluation, professional development, technical support, and cybersecurity compliance. These services are clearly outlined in the relevant sections, indicating that the proposal meets the requirement for \"Services Provided.\""
+    },
+    "Business Structure": {
+        "requirement_value": "Limited Liability Company (LLC)",
+        "result": "Status: \u2705 Compliant  \nReason: The document provides a clear definition of a \"business entity\" as per the relevant Missouri statutes and outlines the criteria that qualify an entity as such. It includes various forms of business structures, such as self-employed individuals, partnerships, corporations, contractors, and subcontractors, which satisfies the requirement for \"Business Structure.\" Additionally, it specifies the conditions under which an entity may or may not be considered a business entity, ensuring that the information is comprehensive and relevant to the requirement."
+    },
+    "W-9 Form": {
+        "requirement_value": "Attached (TIN: 47-6392011)",
+        "result": "Status: \u2705 Compliant  \nReason: The document includes a completed W-9 form as part of the proposal submittals checklist, which satisfies the requirement for a \"W-9 Form.\""
+    },
+    "Certificate of Insurance": {
+        "requirement_value": "Travelers Insurance, Policy #TX-884529-A; includes Workers' Comp, Liability, and Auto",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not include a \"Certificate of Insurance\" as required. While it mentions various types of insurance and their limits that the successful proposer must provide, it does not explicitly state that a Certificate of Insurance is to be submitted or included as part of the documentation. Therefore, it does not fulfill the requirement."
+    },
+    "Licenses": {
+        "requirement_value": "Texas Employment Agency License #TXEA-34892",
+        "result": "Status: \u2705 Compliant  \nReason: The document includes a section that defines a \"business entity\" and mentions the requirement for a business entity to possess a business permit, license, or tax certificate issued by the state. This indicates that the document addresses the requirement for licenses as it outlines the necessary documentation for compliance with state regulations. Additionally, it specifies that entities must have current work authorization documentation, which further supports the requirement for licenses."
+    },
+    "Historically Underutilized Business / DBE Status": {
+        "requirement_value": "Not certified",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not mention anything related to \"Historically Underutilized Business / DBE Status.\" There are no references to the status of the business entity in terms of being a Historically Underutilized Business or Disadvantaged Business Enterprise, which is a specific requirement. The content primarily discusses general business entity definitions, compliance with laws, and proposal requirements without addressing the specific status needed for this requirement."
+    },
+    "MBE Certification": {
+        "requirement_value": "Not certified",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not mention any MBE (Minority Business Enterprise) certification. While it discusses MBE/WBE (Women Business Enterprise) firms and subcontracting, it does not provide evidence or confirmation of MBE certification for any firm involved. The requirement specifically asks for \"MBE Certification,\" which is not addressed in the provided sections."
+    },
+    "Key Personnel \u2013 Project Manager": {
+        "requirement_value": "Ramesh Iyer",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not specifically mention a Project Manager or designate any individual as the Project Manager for the project. While it discusses team members and their responsibilities, it fails to clearly identify a key personnel member in the role of Project Manager, which is a requirement of the RFP."
+    },
+    "Key Personnel \u2013 Technical Lead": {
+        "requirement_value": "Sarah Collins",
+        "result": "Status: \u26a0\ufe0f Partially Compliant  \nReason: The document includes sections that mention the qualifications and responsibilities of team members, but it does not explicitly identify a \"Technical Lead\" or provide specific details about who that individual is. While it discusses the need for names and titles of team members, the absence of a clear designation for a Technical Lead means it does not fully meet the requirement."
+    },
+    "Key Personnel \u2013 Security Auditor": {
+        "requirement_value": "James Wu",
+        "result": "Status: \u274c Not Compliant  \nReason: The document does not mention a \"Security Auditor\" as part of the key personnel or team members. It discusses qualifications and experience related to school district information technology audits but does not specify the inclusion of a security auditor or their specific responsibilities, which is a critical requirement for compliance."
+    }
+}

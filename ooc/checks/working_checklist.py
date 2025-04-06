@@ -122,31 +122,6 @@ def suggest_eligibility_actions(text: str) -> dict:
 
 
 @tool
-def extract_attachments_and_forms(text: str) -> dict:
-    """
-    Extracts required attachments and submission forms from RFP text and returns them
-    in a structured dictionary format.
-    """
-    prompt = PromptTemplate.from_template("""
-    From the RFP text below, list all required attachments and submission forms.
-    
-    - Attachments: like resumes, technical proposals, letters
-    - Forms: like Form A-1, Disclosure Form, W-9, etc.
-
-    Return result as a dictionary with keys: "Attachments" and "Forms".
-
-    RFP Text:
-    {text}
-
-    Output:
-    """)
-    response = llm.predict(prompt.format(text=text))
-    try:
-        return eval(response)
-    except:
-        return {"error": "Failed to parse response", "raw": response}
-
-@tool
 def extract_forms_to_submit(text: str) -> list:
     """Extracts a list of forms that need to be submitted with the proposal."""
     return ["Form A-1", "Disclosure Form", "W-9 Form"]

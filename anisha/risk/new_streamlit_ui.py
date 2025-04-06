@@ -1,7 +1,19 @@
-import streamlit as st
 import os
+
+import numpy as np
+import streamlit as st
+from dotenv import load_dotenv
+from langchain_core.documents import Document
+from langchain_groq import ChatGroq
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_openai import ChatOpenAI
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langgraph.graph import END, START, StateGraph
 from rfp_agent import RFPAnalysisAgent
-from utils_2 import analyze_rfp_document, analyze_clause_bias, suggest_balanced_clause
+from typing_extensions import List, TypedDict
+from utils.data_ingestion import extract_text_from_pdf
+from utils.prompts import COMPLIANCE_PROMPT, MANDATE_PROMPT
+from utils_2 import analyze_clause_bias, analyze_rfp_document, suggest_balanced_clause
 
 # Set wide mode and custom title
 st.set_page_config(page_title="ConsultAdd RFP Analyzer", page_icon="📄", layout="wide")
@@ -49,25 +61,128 @@ if uploaded_file:
 
             if analysis:
                 # Main UI with tabs
-                tab1, tab2, tab3, tab4 = st.tabs([
-                    "📋 Eligibility Check",
-                    "✅ Mandatory Criteria",
-                    "🧾 Submission Checklist",
-                    "⚖️ Contract Risk Analysis"
-                ])
+                tab1, tab2, tab3 = st.tabs(
+                    [
+                        "📋 Eligibility and Compliance Check",
+                        "🧾 Submission Checklist",
+                        "⚖️ Contract Risk Analysis",
+                    ]
+                )
 
                 with tab1:
-                    st.subheader("📋 Standard Compliance Check")
-                    st.success("✅ Legally eligible to bid!")  # Placeholder
-                    st.warning("⚠️ Missing Past Performance Details")  # Placeholder
+
+                    class State(TypedDict):
+                        question: str
+                        context: List[Document]
+                        answer: str
+                        compliance_checker: str
+
+                    load_dotenv()
+
+                    llm = ChatOpenAI(
+                        model="gpt-4o-mini",
+                        temperature=0,
+                        api_key=os.environ.get("OPENAI_API_KEY"),
+                    )
+                    embeddings_model = HuggingFaceEmbeddings(
+                        model_name="sentence-transformers/all-mpnet-base-v2"
+                    )
+
+                    def chunk_and_embed(text: str):
+                        splitter = RecursiveCharacterTextSplitter(
+                            chunk_size=512, chunk_overlap=20
+                        )
+                        docs = splitter.create_documents([text])
+                        texts = [doc.page_content for doc in docs]
+                        vectors = embeddings_model.embed_documents(texts)
+                        return texts, vectors
+
+                    def find_similar_chunks(query: str, texts, vectors, top_k=5):
+                        query_vec = embeddings_model.embed_query(query)
+                        similarities = np.dot(vectors, query_vec) / (
+                            np.linalg.norm(vectors, axis=1) * np.linalg.norm(query_vec)
+                            + 1e-10
+                        )
+                        top_indices = np.argsort(similarities)[::-1][:top_k]
+                        return [texts[i] for i in top_indices]
+
+                    def retrieve(state: State):
+                        question = state["question"]
+
+                        rfp_text = extract_text_from_pdf(uploaded_file)
+                        all_chunks, all_vectors = chunk_and_embed(rfp_text)
+
+                        retrieved_docs = find_similar_chunks(
+                            question, all_chunks, np.array(all_vectors)
+                        )
+
+                        return {"context": retrieved_docs}
+
+                    def compliance_check(state):
+                        context = "\n\n".join(state["context"])
+                        messages = [
+                            (
+                                "system",
+                                f"You are a legal auditor with the knowledge of{state['compliance_checker']} ",
+                            ),
+                            (
+                                "developer",
+                                f"{COMPLIANCE_PROMPT}\n\nContext:\n{context}",
+                            ),
+                        ]
+                        response = llm.invoke(messages)
+                        return {"compliance_checker": response}
+
+                    def analyze_rfp(state: State):
+                        context = "\n\n".join(state["context"])
+                        # query = state["question"]
+                        messages = [
+                            (
+                                "system",
+                                "You are an legal auditor answers yes or now if the things in mandate prompt are available in context or not",
+                            ),
+                            (
+                                "developer",
+                                f"{MANDATE_PROMPT}\n\nContext:\n{context}",
+                            ),
+                        ]
+                        response = llm.invoke(messages)
+                        return {"answer": response}
+
+                    builder = StateGraph(State)
+                    builder.add_node("retrieve", retrieve)
+                    builder.add_node("compliance_check", compliance_check)
+                    builder.add_node("generate", analyze_rfp)
+
+                    builder.add_edge(START, "retrieve")
+                    builder.add_edge("retrieve", "compliance_check")
+                    builder.add_edge("compliance_check", "generate")
+                    builder.add_edge("generate", END)
+
+                    graph = builder.compile()
+
+                    if uploaded_file is not None:
+                        with st.spinner("Extracting and analyzing..."):
+
+                            query = "Years of Experience in Temporary staffing, Company Length of Existence, W-9 Form, qualifications, certifications, licenses"
+
+                            result = graph.invoke(
+                                {
+                                    "question": query,
+                                    "context": [],
+                                    "answer": "",
+                                    "compliance_checker": "",
+                                }
+                            )
+
+                        st.success("Analysis complete!")
+                        st.markdown(
+                            result["compliance_checker"].content, unsafe_allow_html=True
+                        )
+                        st.markdown("-----------------------------")
+                        st.markdown(result["answer"].content, unsafe_allow_html=True)
 
                 with tab2:
-                    st.subheader("✅ Must-Have Criteria")
-                    st.markdown("Here’s what you need to qualify:")
-                    for req_type, count in analysis['statistics']['by_type'].items():
-                        st.info(f"🔹 {req_type.title()}: {count}")
-
-                with tab3:
                     st.subheader("🧾 Submission Requirements Checklist")
                     st.markdown("Auto-extracted checklist from the RFP:")
                     checklist_items = [
@@ -78,7 +193,7 @@ if uploaded_file:
                     for item in checklist_items:
                         st.checkbox(item, value=False)
 
-                with tab4:
+                with tab3:
                     st.subheader("⚖️ Risky Clauses & Suggestions")
 
                     risk_levels = {'High': 0, 'Medium': 0, 'Low': 0}
@@ -107,7 +222,7 @@ if uploaded_file:
                                         'Medium': '🟡',
                                         'Low': '🟢'
                                     }.get(finding['risk_level'], '⚪')
-                                    
+
                                     st.markdown(f"**Risk Level:** {color} {finding['risk_level']}")
                                     st.markdown(f"**Issue Type:** {finding['type'].replace('_', ' ').title()}")
 
@@ -116,7 +231,7 @@ if uploaded_file:
                                         st.code(suggest_balanced_clause(finding), language='markdown')
 
                                         st.button("📋 Copy", key=f"copy_{hash(req['text'])}")
-                                    
+
                                     st.radio(
                                         "Was this helpful?",
                                         ["Yes", "No", "Partially"],

@@ -16,38 +16,9 @@ MANDATE_PROMPT = """You are a highly precise assistant helping evaluate RFP docu
 
 COMPLIANCE_PROMPT = """
 can you go through the chunks find out if the company is legally eligible to bid (e.g., state registration, certifications, past performance requirements).
-
-        this is the data that i have data:
-        ✅ Legal and Regulatory Info
-        State of Incorporation: Delaware
-
-        Business Structure: LLC
-
-        State Registration Number: SRN-DE-0923847
-
-        DUNS Number / CAGE Code / SAM.gov Registration: Required for federal contracting
-
-        ✅ Experience and Capabilities
-        Company Age: 9 years in business
-
-        Staffing Experience: 7 years
-
-        Services Offered: Staffing in administrative, IT, legal, and credentialing fields
-
-        NAICS Codes: For categorizing services in federal procurement (e.g., Temporary Help Services)
-
-        ✅ Compliance & Documentation
-        Certificate of Insurance: Required for many contracts
-
-        W-9 Form: Includes Tax ID (for payment purposes)
-
-        Licenses: Texas Employment Agency license listed
-
-        Bank Letter of Creditworthiness: Not available
-
-        MBE/DBE/HUB Status: Not certified
-
-
-        if yes then explain why, if no then also explain why 
-
-    """
+if yes then explain why, if no then also explain why.
+also if the company is not eligible, don't outright reject it, give reason and try if you can find any workaround that particular clause.
+and in case of not eligible, quote the exact text from the RFP.
+also try to is if the company does not have any criteria met, then is there any thing particular mention in the 
+RFP that might help us to be eligible.
+"""

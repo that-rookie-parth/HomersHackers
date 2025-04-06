@@ -20,7 +20,74 @@ from typing_extensions import List, TypedDict
 from utils.data_ingestion import extract_text_from_pdf
 from utils.prompts import COMPLIANCE_PROMPT, MANDATE_PROMPT
 from utils.risky_clause import analyze_clause_risk
-from utils_2 import analyze_clause_bias, analyze_rfp_document, suggest_balanced_clause
+from utils_2 import (analyze_clause_bias, analyze_rfp_document,
+                     suggest_balanced_clause)
+
+AUDIT_INFO = {
+    "Legal and Regulatory Info": {
+        "State of Incorporation": {
+            "Available": True,
+            "Details": "Delaware",
+        },
+        "Business Structure": {
+            "Available": True,
+            "Details": "LLC",
+        },
+        "State Registration Number": {
+            "Available": True,
+            "Details": "SRN-DE-0923847",
+        },
+        "DUNS Number": {
+            "Available": True,
+            "Details": "07-842-1490",
+        },
+        "CAGE Code": {"Available": True, "Details": "8J4T7"},
+        "SAM.gov Registration": {
+            "Available": True,
+            "Details": "Registered on 03/01/2022",
+        },
+    },
+    "Experience and Capabilities": {
+        "Company Age": {
+            "Available": True,
+            "Details": "9 years",
+        },
+        "Staffing Experience": {
+            "Available": True,
+            "Details": "7 years",
+        },
+        "Services Offered": {
+            "Available": True,
+            "Details": "Administrative, IT, legal, and credentialing staffing",
+        },
+        "NAICS Codes": {
+            "Available": True,
+            "Details": "Used for federal procurement (e.g., Temporary Help Services); specific codes not listed",
+        },
+    },
+    "Compliance and Documentation": {
+        "Certificate of Insurance": {
+            "Available": True,
+            "Details": "Available",
+        },
+        "W-9 Form (with Tax ID)": {
+            "Available": True,
+            "Details": "Includes Tax ID",
+        },
+        "Licenses": {
+            "Available": True,
+            "Details": "Texas Employment Agency license",
+        },
+        "Bank Letter of Creditworthiness": {
+            "Available": False,
+            "Details": "Not available",
+        },
+        "MBE / DBE / HUB Certification": {
+            "Available": False,
+            "Details": "Not certified",
+        },
+    },
+}
 
 
 def highlight_text_in_pdf(pdf_path, output_path, highlights):
@@ -37,7 +104,8 @@ def highlight_text_in_pdf(pdf_path, output_path, highlights):
 # Set wide mode and custom title
 st.set_page_config(page_title="ConsultAdd RFP Analyzer", page_icon="📄", layout="wide")
 
-st.markdown("""
+st.markdown(
+    """
     <style>
         .reportview-container {
             background-color: #F7F9FC;
@@ -49,15 +117,25 @@ st.markdown("""
             color: #0D3B66;
         }
     </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 st.title("📄 ConsultAdd RFP Risk Analyzer")
-st.markdown("##### *AI-powered tool to ensure compliance, analyze risks, and assist in RFP submissions.*")
+st.markdown(
+    "##### *AI-powered tool to ensure compliance, analyze risks, and assist in RFP submissions.*"
+)
 
 # Sidebar settings
 with st.sidebar:
     st.header("⚙️ Settings")
-    risk_threshold = st.slider("Risk Sensitivity", 0.0, 1.0, 0.7, help="Lower values = more risk items detected")
+    risk_threshold = st.slider(
+        "Risk Sensitivity",
+        0.0,
+        1.0,
+        0.7,
+        help="Lower values = more risk items detected",
+    )
     show_suggestions = st.checkbox("💡 Show Balanced Alternatives", True)
     show_entities = st.checkbox("📍 Highlight Named Entities", True)
     st.markdown("---")
@@ -138,18 +216,33 @@ if uploaded_file:
 
                         return {"context": retrieved_docs}
 
+                    def format_audit_info(audit_info):
+                        formatted = []
+                        for section, items in audit_info.items():
+                            formatted.append(f"## {section}")
+                            for item, details in items.items():
+                                available = "✅ Yes" if details["Available"] else "❌ No"
+                                formatted.append(f"- **{item}**: {available}")
+                                formatted.append(f"  - Details: {details['Details']}")
+                            formatted.append("")  # Add space between sections
+                        return "\n".join(formatted)
+
                     def compliance_check(state):
                         context = "\n\n".join(state["context"])
+                        audit_info = AUDIT_INFO
+                        audit_info_str = format_audit_info(audit_info)
+
                         messages = [
                             (
                                 "system",
-                                f"You are a legal auditor with the knowledge of{state['compliance_checker']} ",
+                                f"You are a legal auditor with the knowledge of {state['compliance_checker']}",
                             ),
                             (
                                 "developer",
-                                f"{COMPLIANCE_PROMPT}\n\nContext:\n{context}",
+                                f"{COMPLIANCE_PROMPT}\n\nContext:\n{context}\n\nAudit Information:\n{audit_info_str}",
                             ),
                         ]
+
                         response = llm.invoke(messages)
                         return {"compliance_checker": response}
 
@@ -212,7 +305,7 @@ if uploaded_file:
                     checklist_items = [
                         "Max 10 pages (Arial, size 11)",
                         "Include TOC and section headers",
-                        "Attach Company Registration & Tax Forms"
+                        "Attach Company Registration & Tax Forms",
                     ]
                     for item in checklist_items:
                         st.checkbox(item, value=False)

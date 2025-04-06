@@ -1,3 +1,8 @@
+import os
+import numpy as np
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 
 import pandas as pd
@@ -18,6 +23,34 @@ from langchain.tools import Tool, tool
 from callbacks import AgentCallbackHandler
 from langchain.agents.format_scratchpad import format_log_to_str
 
+
+
+# Step 1: Define LLM + Embedding Model
+llm = ChatGroq(
+    model="qwen-2.5-32b",
+    temperature=0.25,
+    api_key=os.environ.get("GROQ_API_KEY"),
+)
+embeddings_model = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-mpnet-base-v2"
+)
+
+# Step 2: Chunk + Embed Function
+def chunk_and_embed(text: str):
+    splitter = RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=20)
+    docs = splitter.create_documents([text])
+    texts = [doc.page_content for doc in docs]
+    vectors = embeddings_model.embed_documents(texts)
+    return texts, vectors
+
+# Step 3: Retrieval Function
+def find_similar_chunks(query: str, texts, vectors, top_k=5):
+    query_vec = embeddings_model.embed_query(query)
+    similarities = np.dot(vectors, query_vec) / (
+        np.linalg.norm(vectors, axis=1) * np.linalg.norm(query_vec) + 1e-10
+    )
+    top_indices = np.argsort(similarities)[::-1][:top_k]
+    return [texts[i] for i in top_indices]
 
 
 # this tool decorator will take the function and create a custom langchain tool out of it
@@ -79,6 +112,34 @@ def extract_forms_to_submit(text: str) -> list:
     """Extracts a list of forms that need to be submitted with the proposal."""
     return ["Form A-1", "Disclosure Form", "W-9 Form"]
 
+
+
+@tool
+def extract_attachments_and_forms(text: str) -> dict:
+    """
+    Extracts required attachments and submission forms from RFP text and returns them
+    in a structured dictionary format.
+    """
+    prompt = PromptTemplate.from_template("""
+    From the RFP text below, list all required attachments and submission forms.
+    
+    - Attachments: like resumes, technical proposals, letters
+    - Forms: like Form A-1, Disclosure Form, W-9, etc.
+
+    Return result as a dictionary with keys: "Attachments" and "Forms".
+
+    RFP Text:
+    {text}
+
+    Output:
+    """)
+    response = llm.predict(prompt.format(text=text))
+    try:
+        return eval(response)
+    except:
+        return {"error": "Failed to parse response", "raw": response}
+
+
 def extract_text_from_pdf(pdf_path):
     try:
         with pdfplumber.open(pdf_path) as pdf:
@@ -99,12 +160,23 @@ def find_tool_by_id(tools: List[Tool], tool_name: str) -> Tool:
             return tool
         raise ValueError(f"Tool with {tool_name} not found!")
 
-if __name__ == "__main__":
-    print("🔍 Starting RFP Submission Checklist Agent...\n")
 
+# Main RAG + ReAct
+if __name__ == "__main__":
     rfp_path = "ELIGIBLE_RFP_2.pdf"
     rfp_text = extract_text_from_pdf(rfp_path)
-# extract_format_requirements , extract_attachments_and_forms . extract_forms_to_submit
+
+    # Step 4: Chunk + Embed
+    all_chunks, all_vectors = chunk_and_embed(rfp_text)
+
+    # Step 5: Retrieve relevant context
+    question = "What are the submission requirements including page limits, formatting, and required attachments?"
+    retrieved_chunks = find_similar_chunks(question, all_chunks, np.array(all_vectors))
+    context = "\n".join(retrieved_chunks)
+
+    print("🔍 Retrieved Context for ReAct Agent:\n", context[:500])
+
+    # Step 6: Run ReAct agent on retrieved context
     tools = [extract_format_requirements, extract_attachments_and_forms, extract_forms_to_submit]
 
     template = """ 
@@ -135,13 +207,6 @@ if __name__ == "__main__":
         tool_names=", ".join([t.name for t in tools]),
     )
 
-    llm = ChatGroq(
-        model="llama3-70b-8192",
-        temperature=0.0,
-        stop=["\nObservation", "Observation"],
-        callbacks=[AgentCallbackHandler()],
-    )
-
     intermediate_steps = []
 
     agent_chain = (
@@ -154,10 +219,9 @@ if __name__ == "__main__":
         | ReActSingleInputOutputParser()
     )
 
-    # 🔁 Loop until Final Answer
     while True:
         agent_step = agent_chain.invoke({
-            "input": rfp_text,
+            "input": context,
             "agent_scratchpad": intermediate_steps,
         })
 

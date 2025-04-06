@@ -10,14 +10,14 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import List, TypedDict
 from utils.data_ingestion import extract_text_from_pdf
-from utils.prompts import MANDATE_PROMPT
+from utils.prompts import COMPLIANCE_PROMPT, MANDATE_PROMPT
 
 
 class State(TypedDict):
     question: str
     context: List[Document]
     answer: str
-
+    compliance_checker: str
 
 load_dotenv()
 
@@ -58,6 +58,18 @@ def retrieve(state: State):
     return {"context": retrieved_docs}
 
 
+def compliance_check(state):
+    messages = [
+        (
+            "system",
+            f"You are a legal auditor with the knowledge of{state['compliance_checker']} ",
+        ),
+        ("developer", f"{COMPLIANCE_PROMPT}"),
+    ]
+    response = llm.invoke(messages)
+    return {"compliance_checker": response}
+
+
 def analyze_rfp(state: State):
     context = "\n\n".join(state["context"])
     query = state["question"]
@@ -74,10 +86,12 @@ def analyze_rfp(state: State):
 
 builder = StateGraph(State)
 builder.add_node("retrieve", retrieve)
+builder.add_node("compliance_check", compliance_check)
 builder.add_node("generate", analyze_rfp)
 
 builder.add_edge(START, "retrieve")
-builder.add_edge("retrieve", "generate")
+builder.add_edge("retrieve", "compliance_check")
+builder.add_edge("compliance_check", "generate")
 builder.add_edge("generate", END)
 
 
@@ -92,7 +106,10 @@ if uploaded_file is not None:
 
         query = "Years of Experience in Temporary staffing, Company Length of Existence, W-9 Form, qualifications, certifications, licenses"
 
-        result = graph.invoke({"question": query, "context": [], "answer": ""})
+        result = graph.invoke(
+            {"question": query, "context": [], "answer": "", "compliance_checker": ""}
+        )
 
     st.success("Analysis complete!")
+    st.markdown(result["compliance_checker"].content, unsafe_allow_html=True)
     st.markdown(result["answer"].content, unsafe_allow_html=True)

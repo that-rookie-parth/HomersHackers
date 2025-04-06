@@ -56,6 +56,11 @@ st.markdown("##### *AI-powered tool to ensure compliance, analyze risks, and ass
 
 # Sidebar settings
 with st.sidebar:
+    st.header("⚙️ Settings")
+    risk_threshold = st.slider("Risk Sensitivity", 0.0, 1.0, 0.7, help="Lower values = more risk items detected")
+    show_suggestions = st.checkbox("💡 Show Balanced Alternatives", True)
+    show_entities = st.checkbox("📍 Highlight Named Entities", True)
+    st.markdown("---")
     uploaded_file = st.file_uploader("📤 Upload RFP Document (PDF)", type=["pdf"])
 
 # Init agent
@@ -265,7 +270,7 @@ if uploaded_file:
 
                     intermediate_steps = []
                     final_results = []
-                    st.success("✅ Final Analysis: ")
+
                     for clause in similar_clauses:
                         agent_step = agent_chain.invoke(
                             {
@@ -274,6 +279,7 @@ if uploaded_file:
                             }
                         )
 
+                        st.success("✅ Final Analysis: ")
                         st.markdown(agent_step.content)
                 with tab4:
                     with st.spinner("Analyzing clauses for suggestions..."):

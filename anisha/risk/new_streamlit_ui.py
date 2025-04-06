@@ -1,24 +1,110 @@
 import os
 
+import fitz
 import numpy as np
 import streamlit as st
 from dotenv import load_dotenv
+from langchain.agents.format_scratchpad import format_log_to_str
+from langchain.tools.render import render_text_description
 from langchain_core.documents import Document
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import END, START, StateGraph
 from rfp_agent import RFPAnalysisAgent
+from sentence_transformers import SentenceTransformer, util
 from typing_extensions import List, TypedDict
 from utils.data_ingestion import extract_text_from_pdf
 from utils.prompts import COMPLIANCE_PROMPT, MANDATE_PROMPT
+from utils.risky_clause import analyze_clause_risk
 from utils_2 import analyze_clause_bias, analyze_rfp_document, suggest_balanced_clause
+
+AUDIT_INFO = {
+    "Legal and Regulatory Info": {
+        "State of Incorporation": {
+            "Available": True,
+            "Details": "Delaware",
+        },
+        "Business Structure": {
+            "Available": True,
+            "Details": "LLC",
+        },
+        "State Registration Number": {
+            "Available": True,
+            "Details": "SRN-DE-0923847",
+        },
+        "DUNS Number": {
+            "Available": True,
+            "Details": "07-842-1490",
+        },
+        "CAGE Code": {"Available": True, "Details": "8J4T7"},
+        "SAM.gov Registration": {
+            "Available": True,
+            "Details": "Registered on 03/01/2022",
+        },
+    },
+    "Experience and Capabilities": {
+        "Company Age": {
+            "Available": True,
+            "Details": "9 years",
+        },
+        "Staffing Experience": {
+            "Available": True,
+            "Details": "7 years",
+        },
+        "Services Offered": {
+            "Available": True,
+            "Details": "Administrative, IT, legal, and credentialing staffing",
+        },
+        "NAICS Codes": {
+            "Available": True,
+            "Details": "Used for federal procurement (e.g., Temporary Help Services); specific codes not listed",
+        },
+    },
+    "Compliance and Documentation": {
+        "Certificate of Insurance": {
+            "Available": True,
+            "Details": "Available",
+        },
+        "W-9 Form (with Tax ID)": {
+            "Available": True,
+            "Details": "Includes Tax ID",
+        },
+        "Licenses": {
+            "Available": True,
+            "Details": "Texas Employment Agency license",
+        },
+        "Bank Letter of Creditworthiness": {
+            "Available": False,
+            "Details": "Not available",
+        },
+        "MBE / DBE / HUB Certification": {
+            "Available": False,
+            "Details": "Not certified",
+        },
+    },
+}
+
+
+def highlight_text_in_pdf(pdf_path, output_path, highlights):
+    doc = fitz.open(pdf_path)
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        for text in highlights:
+            text_instances = page.search_for(text)
+            for inst in text_instances:
+                page.add_highlight_annot(inst)
+    doc.save(output_path)
+
 
 # Set wide mode and custom title
 st.set_page_config(page_title="ConsultAdd RFP Analyzer", page_icon="📄", layout="wide")
 
-st.markdown("""
+st.markdown(
+    """
     <style>
         .reportview-container {
             background-color: #F7F9FC;
@@ -30,18 +116,17 @@ st.markdown("""
             color: #0D3B66;
         }
     </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 st.title("📄 ConsultAdd RFP Risk Analyzer")
-st.markdown("##### *AI-powered tool to ensure compliance, analyze risks, and assist in RFP submissions.*")
+st.markdown(
+    "##### *AI-powered tool to ensure compliance, analyze risks, and assist in RFP submissions.*"
+)
 
 # Sidebar settings
 with st.sidebar:
-    st.header("⚙️ Settings")
-    risk_threshold = st.slider("Risk Sensitivity", 0.0, 1.0, 0.7, help="Lower values = more risk items detected")
-    show_suggestions = st.checkbox("💡 Show Balanced Alternatives", True)
-    show_entities = st.checkbox("📍 Highlight Named Entities", True)
-    st.markdown("---")
     uploaded_file = st.file_uploader("📤 Upload RFP Document (PDF)", type=["pdf"])
 
 # Init agent
@@ -61,11 +146,12 @@ if uploaded_file:
 
             if analysis:
                 # Main UI with tabs
-                tab1, tab2, tab3 = st.tabs(
+                tab1, tab2, tab3, tab4 = st.tabs(
                     [
-                        "📋 Eligibility and Compliance Check",
-                        "🧾 Submission Checklist",
-                        "⚖️ Contract Risk Analysis",
+                        "Eligibility and Compliance Check",
+                        "Submission Checklist",
+                        "Contract Risk Analysis",
+                        "Actionable Insights",
                     ]
                 )
 
@@ -118,18 +204,35 @@ if uploaded_file:
 
                         return {"context": retrieved_docs}
 
+                    def format_audit_info(audit_info):
+                        formatted = []
+                        for section, items in audit_info.items():
+                            formatted.append(f"## {section}")
+                            for item, details in items.items():
+                                available = (
+                                    "✅ Yes" if details["Available"] else "❌ No"
+                                )
+                                formatted.append(f"- **{item}**: {available}")
+                                formatted.append(f"  - Details: {details['Details']}")
+                            formatted.append("")  # Add space between sections
+                        return "\n".join(formatted)
+
                     def compliance_check(state):
                         context = "\n\n".join(state["context"])
+                        audit_info = AUDIT_INFO
+                        audit_info_str = format_audit_info(audit_info)
+
                         messages = [
                             (
                                 "system",
-                                f"You are a legal auditor with the knowledge of{state['compliance_checker']} ",
+                                f"You are a legal auditor with the knowledge of {state['compliance_checker']}",
                             ),
                             (
                                 "developer",
-                                f"{COMPLIANCE_PROMPT}\n\nContext:\n{context}",
+                                f"{COMPLIANCE_PROMPT}\n\nContext:\n{context}\n\nAudit Information:\n{audit_info_str}",
                             ),
                         ]
+
                         response = llm.invoke(messages)
                         return {"compliance_checker": response}
 
@@ -182,13 +285,17 @@ if uploaded_file:
                         st.markdown("-----------------------------")
                         st.markdown(result["answer"].content, unsafe_allow_html=True)
 
+                        st.markdown("### 📚 Sources Used")
+                        for i, source in enumerate(result["context"], 1):
+                            st.markdown(f"**Source {i}:**\n```text\n{source}\n```")
+
                 with tab2:
                     st.subheader("🧾 Submission Requirements Checklist")
                     st.markdown("Auto-extracted checklist from the RFP:")
                     checklist_items = [
                         "Max 10 pages (Arial, size 11)",
                         "Include TOC and section headers",
-                        "Attach Company Registration & Tax Forms"
+                        "Attach Company Registration & Tax Forms",
                     ]
                     for item in checklist_items:
                         st.checkbox(item, value=False)
@@ -196,47 +303,126 @@ if uploaded_file:
                 with tab3:
                     st.subheader("⚖️ Risky Clauses & Suggestions")
 
-                    risk_levels = {'High': 0, 'Medium': 0, 'Low': 0}
-                    for req in analysis['requirements']:
-                        findings = analyze_clause_bias(req['text'])
-                        for finding in findings:
-                            risk_levels[finding['risk_level']] += 1
+                    rfp_text = extract_text_from_pdf(uploaded_file)
+                    all_chunks, all_vectors = chunk_and_embed(rfp_text)
 
-                    st.markdown("### 🔍 Risk Summary")
-                    st.metric("🔴 High Risk Items", risk_levels["High"])
-                    st.metric("🟡 Medium Risk Items", risk_levels["Medium"])
-                    st.metric("🟢 Low Risk Items", risk_levels["Low"])
+                    tools = [analyze_clause_risk]
 
-                    st.markdown("---")
+                    template = """
+                    You are a contract risk assessment agent. You have tools to analyze text chunks.
 
-                    for req in analysis['requirements']:
-                        biased_findings = analyze_clause_bias(req['text'])
-                        if biased_findings:
-                            with st.expander(f"🚨 Risk in Requirement {req['id']}"):
-                                st.markdown("**🔹 Original Clause:**")
-                                st.write(req['text'])
+                    Use this format:
 
-                                for finding in biased_findings:
-                                    color = {
-                                        'High': '🔴',
-                                        'Medium': '🟡',
-                                        'Low': '🟢'
-                                    }.get(finding['risk_level'], '⚪')
+                    Question: a contract clause to evaluate
+                    Thought: reason about risk level
+                    Action: the action to take, should be one of [{tool_names}]
+                    Action Input: the clause
+                    Observation: the result
+                    ... repeat Thought/Action until done ...
+                    Thought: I now know the final answer
+                    Final Answer: return all results in a list of JSON per clause
 
-                                    st.markdown(f"**Risk Level:** {color} {finding['risk_level']}")
-                                    st.markdown(f"**Issue Type:** {finding['type'].replace('_', ' ').title()}")
+                    Begin!
 
-                                    if show_suggestions:
-                                        st.markdown("**💡 Suggested Balanced Alternative:**")
-                                        st.code(suggest_balanced_clause(finding), language='markdown')
+                    Question: {input}
+                    Thought: {agent_scratchpad}
+                    """
 
-                                        st.button("📋 Copy", key=f"copy_{hash(req['text'])}")
+                    prompt = PromptTemplate.from_template(template).partial(
+                        tools=render_text_description(tools),
+                        tool_names=", ".join([t.name for t in tools]),
+                    )
 
-                                    st.radio(
-                                        "Was this helpful?",
-                                        ["Yes", "No", "Partially"],
-                                        key=f"feedback_{hash(req['text'])}"
-                                    )
+                    agent_chain = (
+                        {
+                            "input": lambda x: x["input"],
+                            "agent_scratchpad": lambda x: format_log_to_str(
+                                x["agent_scratchpad"]
+                            ),
+                        }
+                        | prompt
+                        | llm
+                    )
+
+                    similar_clauses = find_similar_chunks(
+                        query="biased or risky contract clauses",
+                        texts=all_chunks,
+                        vectors=np.array(all_vectors),
+                        top_k=5,
+                    )
+
+                    intermediate_steps = []
+                    final_results = []
+
+                    for clause in similar_clauses:
+                        agent_step = agent_chain.invoke(
+                            {
+                                "input": clause,
+                                "agent_scratchpad": intermediate_steps,
+                            }
+                        )
+
+                        st.success("✅ Final Analysis: ")
+                        st.markdown(agent_step.content)
+                with tab4:
+                    with st.spinner("Analyzing clauses for suggestions..."):
+
+                        rfp_text = extract_text_from_pdf(uploaded_file)
+
+                        splitter = RecursiveCharacterTextSplitter(
+                            chunk_size=512, chunk_overlap=20
+                        )
+
+                        chunks = [
+                            chunk.page_content.strip()
+                            for chunk in splitter.create_documents([rfp_text])
+                        ]
+
+                        model = SentenceTransformer("all-MiniLM-L6-v2")
+                        chunk_embeddings = model.encode(chunks, convert_to_tensor=True)
+
+                        reference_clauses = [
+                            "The Contractor may offer additional maintenance services if eligible.",
+                            "Future support services may enhance bid eligibility.",
+                            "Optional maintenance support may be provided to enhance bid competitiveness.",
+                        ]
+                        ref_embeddings = model.encode(
+                            reference_clauses, convert_to_tensor=True
+                        )
+
+                        threshold = 0.4
+                        matched_chunks = []
+                        for chunk, embedding in zip(chunks, chunk_embeddings):
+                            cosine_scores = util.cos_sim(embedding, ref_embeddings)
+                            max_score = cosine_scores.max().item()
+                            if max_score >= threshold:
+                                matched_chunks.append((chunk, max_score))
+
+                        improvement_prompt = PromptTemplate(
+                            input_variables=["clause"],
+                            template="""
+                                You are a proposal expert. Here is a contract clause that was identified as beneficial:
+            
+                                "{clause}"
+            
+                                Summarize the clause in simple language and explain what actions I can take to improve my proposal based on this clause.
+                                Provide clear, short, and actionable advice.
+                                """,
+                        )
+                        chain = improvement_prompt | llm | StrOutputParser()
+
+                        if matched_chunks:
+                            for clause, score in matched_chunks:
+                                advice = chain.invoke({"clause": clause})
+
+                                st.markdown(f"> {clause}")
+                                st.markdown("**💡 Proposal Advice:**")
+                                st.success(advice.strip())
+                                st.markdown("---")
+                        else:
+                            st.info(
+                                "No clauses were similar enough to the reference beneficial clauses."
+                            )
 
         except Exception as e:
             st.error(f"🚫 Error: {str(e)}")

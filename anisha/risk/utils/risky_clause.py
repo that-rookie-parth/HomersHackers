@@ -4,7 +4,6 @@ from typing import List
 
 import numpy as np
 import pdfplumber
-from callbacks import AgentCallbackHandler
 from dotenv import load_dotenv
 from langchain.agents import tool
 from langchain.agents.format_scratchpad import format_log_to_str
@@ -17,6 +16,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_groq import ChatGroq
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from utils.callbacks import AgentCallbackHandler
 
 load_dotenv()
 
@@ -24,7 +24,7 @@ llm = ChatGroq(
     model="llama3-70b-8192",
     temperature=0.25,
     api_key=os.environ.get("GROQ_API_KEY"),
-    callbacks=[AgentCallbackHandler()]
+    callbacks=[AgentCallbackHandler()],
 )
 
 embeddings_model = HuggingFaceEmbeddings(
@@ -38,7 +38,8 @@ def extract_attachments_and_forms(text: str) -> dict:
     Extracts required attachments and submission forms from RFP text and returns them
     in a structured dictionary format.
     """
-    prompt = PromptTemplate.from_template("""
+    prompt = PromptTemplate.from_template(
+        """
     From the RFP text below, list all required attachments and submission forms.
     
     - Attachments: like resumes, technical proposals, letters
@@ -50,7 +51,8 @@ def extract_attachments_and_forms(text: str) -> dict:
     {text}
 
     Output:
-    """)
+    """
+    )
     response = llm.predict(prompt.format(text=text))
     try:
         return eval(response)
@@ -81,13 +83,15 @@ def generate_pdf_report(filepath, data):
                 y = height - 50
     c.save()
 
+
 @tool
 def analyze_risk_levels(text: str) -> list:
     """
     Analyze each paragraph of the RFP and assign a risk level: High, Medium, or Low.
     Return a list of tuples (paragraph, risk_level).
     """
-    prompt = PromptTemplate.from_template("""
+    prompt = PromptTemplate.from_template(
+        """
     Analyze the risk level of each paragraph in the RFP text provided.
     Classify each one as 'High', 'Medium', or 'Low' risk for vendors.
     Return a Python list of tuples: [(paragraph1, risk_level), (paragraph2, risk_level), ...]
@@ -95,9 +99,11 @@ def analyze_risk_levels(text: str) -> list:
     RFP Text:
     {text}
     Output:
-    """)
+    """
+    )
     response = llm.invoke(prompt.format(text=text))
     return eval(response)
+
 
 @tool
 def compute_vendor_friendly_score(text: str) -> dict:
@@ -105,7 +111,8 @@ def compute_vendor_friendly_score(text: str) -> dict:
     Analyze the vendor-friendliness of the RFP and assign a score out of 100.
     Return the score and a short explanation.
     """
-    prompt = PromptTemplate.from_template("""
+    prompt = PromptTemplate.from_template(
+        """
     Analyze the RFP text and rate its vendor-friendliness on a scale of 0 to 100.
     Consider clarity, fairness of terms, length, and required forms.
     
@@ -114,9 +121,11 @@ def compute_vendor_friendly_score(text: str) -> dict:
     RFP Text:
     {text}
     Output:
-    """)
+    """
+    )
     response = llm.invoke(prompt.format(text=text))
     return eval(response)
+
 
 @tool
 def rewrite_high_risk_clauses(text: str) -> List[dict]:
@@ -124,7 +133,8 @@ def rewrite_high_risk_clauses(text: str) -> List[dict]:
     Rewrites high-risk clauses into balanced ones.
     Returns list of {"original": str, "suggested": str}
     """
-    prompt = PromptTemplate.from_template("""
+    prompt = PromptTemplate.from_template(
+        """
     Given the following RFP paragraphs, rewrite each one to be more balanced and fair to vendors,
     while maintaining legal intent.
 
@@ -133,7 +143,8 @@ def rewrite_high_risk_clauses(text: str) -> List[dict]:
     RFP Text:
     {text}
     Output:
-    """)
+    """
+    )
     response = llm.invoke(prompt.format(text=text))
     return eval(response)
 
@@ -141,7 +152,8 @@ def rewrite_high_risk_clauses(text: str) -> List[dict]:
 @tool
 def analyze_clause_risk(text: str) -> dict:
     """Analyze if a clause contains biased or risky content."""
-    prompt = PromptTemplate.from_template("""
+    prompt = PromptTemplate.from_template(
+        """
     You are a legal analyst AI.
 
     Analyze the following clause for any potential biases or risks. Return a structured JSON with:
@@ -153,13 +165,15 @@ def analyze_clause_risk(text: str) -> dict:
     {text}
 
     Output:
-    """)
+    """
+    )
 
     response = llm.predict(prompt.format(text=text))
     try:
         return eval(response)
     except:
         return {"error": "Failed to parse response", "raw": response}
+
 
 def extract_text_from_pdf(pdf_path):
     try:
@@ -174,12 +188,14 @@ def extract_text_from_pdf(pdf_path):
         print(f"Error extracting text from PDF: {e}")
         return ""
 
+
 def chunk_and_embed(text: str):
     splitter = RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=20)
     docs = splitter.create_documents([text])
     texts = [doc.page_content for doc in docs]
     vectors = embeddings_model.embed_documents(texts)
     return texts, vectors
+
 
 def find_similar_chunks(query: str, texts, vectors, top_k=5):
     query_vec = embeddings_model.embed_query(query)
@@ -188,6 +204,7 @@ def find_similar_chunks(query: str, texts, vectors, top_k=5):
     )
     top_indices = np.argsort(similarities)[::-1][:top_k]
     return [texts[i] for i in top_indices]
+
 
 def find_tool_by_id(tools: List[Tool], tool_name: str) -> Tool:
     for tool in tools:
@@ -200,10 +217,11 @@ def find_tool_by_id(tools: List[Tool], tool_name: str) -> Tool:
 @tool
 def extract_format_requirements(text: str) -> dict:
     """
-    Extracts document format requirements from RFP text including page limit, font, 
+    Extracts document format requirements from RFP text including page limit, font,
     font size, line spacing, and TOC requirements.
     """
-    prompt = PromptTemplate.from_template("""
+    prompt = PromptTemplate.from_template(
+        """
     From the following RFP text, extract only document format requirements. Include:
     - Page Limit
     - Font
@@ -217,7 +235,8 @@ def extract_format_requirements(text: str) -> dict:
     {text}
 
     Output:
-    """)
+    """
+    )
     response = llm.predict(prompt.format(text=text))
     try:
         return eval(response)
@@ -278,10 +297,12 @@ if __name__ == "__main__":
     final_results = []
 
     for clause in similar_clauses:
-        agent_step = agent_chain.invoke({
-            "input": clause,
-            "agent_scratchpad": intermediate_steps,
-        })
+        agent_step = agent_chain.invoke(
+            {
+                "input": clause,
+                "agent_scratchpad": intermediate_steps,
+            }
+        )
 
         print("✅ Final Analysis: ")
         print(agent_step.content)

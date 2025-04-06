@@ -50,8 +50,8 @@ def extract_requirements(text: str) -> List[Dict[str, str]]:
     
     # Common requirement indicators
     requirement_patterns = [
-        r'(?:^|\n)(?P<id>\d+\.[\d\.]*)\s*(?P<text>.*?)(?=\n\d+\.|\Z)',  # Numbered requirements
-        r'(?:^|\n)(?P<id>[A-Z]\.[\d\.]*)\s*(?P<text>.*?)(?=\n[A-Z]\.|\Z)',  # Letter requirements
+        r'(?:^|\n)(?P<id>\d+\.[\d\.])\s(?P<text>.*?)(?=\n\d+\.|\Z)',  # Numbered requirements
+        r'(?:^|\n)(?P<id>[A-Z]\.[\d\.])\s(?P<text>.*?)(?=\n[A-Z]\.|\Z)',  # Letter requirements
         r'(?:^|\n)(?P<id>R\d+)\s*(?P<text>.*?)(?=\nR\d+|\Z)',  # R-prefixed requirements
         r'(?:^|\n)(?:Requirement|REQ):\s*(?P<text>.*?)(?=\n(?:Requirement|REQ):|\Z)'  # Explicit requirements
     ]
@@ -148,12 +148,12 @@ def identify_biased_patterns():
             'suggestion': 'Adjust payment terms to net-30 or net-45 days maximum'
         },
         'intellectual_property': {
-            'pattern': r'(?i)(ip|intellectual\s+property|work\s+product).*?(shall\s+belong|ownership|transfer|assign).*?(client|customer)',
+            'pattern': r'(?i)(ip|intellectual\s+property|work\s+product).?(shall\s+belong|ownership|transfer|assign).?(client|customer)',
             'risk_level': 'High',
             'suggestion': 'Limit IP transfer to project deliverables only, exclude pre-existing IP'
         },
         'non_compete': {
-            'pattern': r'(?i)(non-compete|not\s+compete|restrict.*?business).*?(years?|months?)',
+            'pattern': r'(?i)(non-compete|not\s+compete|restrict.?business).?(years?|months?)',
             'risk_level': 'Medium',
             'suggestion': 'Limit non-compete to specific clients/regions and maximum 12 months'
         }

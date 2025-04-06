@@ -11,12 +11,13 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_openai import ChatOpenAI
+# from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import END, START, StateGraph
 from rfp_agent import RFPAnalysisAgent
 from sentence_transformers import SentenceTransformer, util
 from typing_extensions import List, TypedDict
+from langchain_groq import ChatGroq
 from utils.data_ingestion import extract_text_from_pdf
 from utils.prompts import COMPLIANCE_PROMPT, MANDATE_PROMPT
 from utils.risky_clause import analyze_clause_risk
@@ -165,10 +166,15 @@ if uploaded_file:
 
                     load_dotenv()
 
-                    llm = ChatOpenAI(
-                        model="gpt-4o-mini",
-                        temperature=0,
-                        api_key=os.environ.get("OPENAI_API_KEY"),
+                    # llm = ChatOpenAI(
+                    #     model="gpt-4o-mini",
+                    #     temperature=0,
+                    #     api_key=os.environ.get("OPENAI_API_KEY"),
+                    # )
+                    llm = ChatGroq(
+                        model="qwen-2.5-32b",
+                        temperature=0.25,
+                        api_key=os.environ.get("GROQ_API_KEY"),
                     )
                     embeddings_model = HuggingFaceEmbeddings(
                         model_name="sentence-transformers/all-mpnet-base-v2"
@@ -299,7 +305,7 @@ if uploaded_file:
                     ]
                     for item in checklist_items:
                         st.checkbox(item, value=False)
-
+                
                 with tab3:
                     st.subheader("⚖️ Risky Clauses & Suggestions")
 
@@ -423,6 +429,7 @@ if uploaded_file:
                             st.info(
                                 "No clauses were similar enough to the reference beneficial clauses."
                             )
+
 
         except Exception as e:
             st.error(f"🚫 Error: {str(e)}")

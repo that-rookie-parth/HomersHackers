@@ -3,7 +3,10 @@ import os
 import numpy as np
 import streamlit as st
 from dotenv import load_dotenv
+from langchain.agents.format_scratchpad import format_log_to_str
+from langchain.tools.render import render_text_description
 from langchain_core.documents import Document
+from langchain_core.prompts import PromptTemplate
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
@@ -13,6 +16,7 @@ from rfp_agent import RFPAnalysisAgent
 from typing_extensions import List, TypedDict
 from utils.data_ingestion import extract_text_from_pdf
 from utils.prompts import COMPLIANCE_PROMPT, MANDATE_PROMPT
+from utils.risky_clause import analyze_clause_risk
 from utils_2 import analyze_clause_bias, analyze_rfp_document, suggest_balanced_clause
 
 # Set wide mode and custom title
@@ -196,47 +200,67 @@ if uploaded_file:
                 with tab3:
                     st.subheader("⚖️ Risky Clauses & Suggestions")
 
-                    risk_levels = {'High': 0, 'Medium': 0, 'Low': 0}
-                    for req in analysis['requirements']:
-                        findings = analyze_clause_bias(req['text'])
-                        for finding in findings:
-                            risk_levels[finding['risk_level']] += 1
+                    rfp_text = extract_text_from_pdf(uploaded_file)
+                    all_chunks, all_vectors = chunk_and_embed(rfp_text)
 
-                    st.markdown("### 🔍 Risk Summary")
-                    st.metric("🔴 High Risk Items", risk_levels["High"])
-                    st.metric("🟡 Medium Risk Items", risk_levels["Medium"])
-                    st.metric("🟢 Low Risk Items", risk_levels["Low"])
+                    tools = [analyze_clause_risk]
 
-                    st.markdown("---")
+                    template = """
+                    You are a contract risk assessment agent. You have tools to analyze text chunks.
 
-                    for req in analysis['requirements']:
-                        biased_findings = analyze_clause_bias(req['text'])
-                        if biased_findings:
-                            with st.expander(f"🚨 Risk in Requirement {req['id']}"):
-                                st.markdown("**🔹 Original Clause:**")
-                                st.write(req['text'])
+                    Use this format:
 
-                                for finding in biased_findings:
-                                    color = {
-                                        'High': '🔴',
-                                        'Medium': '🟡',
-                                        'Low': '🟢'
-                                    }.get(finding['risk_level'], '⚪')
+                    Question: a contract clause to evaluate
+                    Thought: reason about risk level
+                    Action: the action to take, should be one of [{tool_names}]
+                    Action Input: the clause
+                    Observation: the result
+                    ... repeat Thought/Action until done ...
+                    Thought: I now know the final answer
+                    Final Answer: return all results in a list of JSON per clause
 
-                                    st.markdown(f"**Risk Level:** {color} {finding['risk_level']}")
-                                    st.markdown(f"**Issue Type:** {finding['type'].replace('_', ' ').title()}")
+                    Begin!
 
-                                    if show_suggestions:
-                                        st.markdown("**💡 Suggested Balanced Alternative:**")
-                                        st.code(suggest_balanced_clause(finding), language='markdown')
+                    Question: {input}
+                    Thought: {agent_scratchpad}
+                    """
 
-                                        st.button("📋 Copy", key=f"copy_{hash(req['text'])}")
+                    prompt = PromptTemplate.from_template(template).partial(
+                        tools=render_text_description(tools),
+                        tool_names=", ".join([t.name for t in tools]),
+                    )
 
-                                    st.radio(
-                                        "Was this helpful?",
-                                        ["Yes", "No", "Partially"],
-                                        key=f"feedback_{hash(req['text'])}"
-                                    )
+                    agent_chain = (
+                        {
+                            "input": lambda x: x["input"],
+                            "agent_scratchpad": lambda x: format_log_to_str(
+                                x["agent_scratchpad"]
+                            ),
+                        }
+                        | prompt
+                        | llm
+                    )
+
+                    similar_clauses = find_similar_chunks(
+                        query="biased or risky contract clauses",
+                        texts=all_chunks,
+                        vectors=np.array(all_vectors),
+                        top_k=5,
+                    )
+
+                    intermediate_steps = []
+                    final_results = []
+
+                    for clause in similar_clauses:
+                        agent_step = agent_chain.invoke(
+                            {
+                                "input": clause,
+                                "agent_scratchpad": intermediate_steps,
+                            }
+                        )
+
+                        st.success("✅ Final Analysis: ")
+                        st.markdown(agent_step.content)
 
         except Exception as e:
             st.error(f"🚫 Error: {str(e)}")

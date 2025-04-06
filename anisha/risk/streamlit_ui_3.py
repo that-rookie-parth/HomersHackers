@@ -1,7 +1,8 @@
-import streamlit as st
 import os
+
+import streamlit as st
 from rfp_agent import RFPAnalysisAgent
-from utils_2 import analyze_rfp_document, analyze_clause_bias, suggest_balanced_clause
+from utils_2 import analyze_clause_bias, analyze_rfp_document, suggest_balanced_clause
 
 # Page configuration
 st.set_page_config(
@@ -38,22 +39,22 @@ if uploaded_file:
     # Save uploaded file temporarily
     temp_path = os.path.join("temp", uploaded_file.name)
     os.makedirs("temp", exist_ok=True)
-    
+
     with open(temp_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
-        
+
     with st.spinner("Analyzing RFP..."):
         try:
             # Analyze document
             analysis = analyze_rfp_document(temp_path)
-            
+
             if analysis:
                 # Create two columns for layout
                 col1, col2 = st.columns([2, 1])
-                
+
                 with col1:
                     st.header("📊 Document Analysis")
-                    
+
                     # Document statistics
                     stats_cols = st.columns(3)
                     with stats_cols[0]:
@@ -72,7 +73,7 @@ if uploaded_file:
                             len([r for r in analysis['requirements'] 
                                 if analyze_clause_bias(r['text'])])
                         )
-                    
+
                     # Risk Analysis Section
                     st.header("⚠️ Risk Analysis")
                     for req in analysis['requirements']:
@@ -82,7 +83,7 @@ if uploaded_file:
                                 # Original text
                                 st.markdown("**Original Text:**")
                                 st.write(req['text'])
-                                
+
                                 # Risk details
                                 for finding in biased_findings:
                                     risk_color = {
@@ -90,33 +91,33 @@ if uploaded_file:
                                         'Medium': '🟡',
                                         'Low': '🟢'
                                     }.get(finding['risk_level'], '⚪')
-                                    
+
                                     st.markdown(f"**Risk Level:** {risk_color} {finding['risk_level']}")
                                     st.markdown("**Issue Type:**")
                                     st.write(finding['type'].replace('_', ' ').title())
-                                    
+
                                     if show_suggestions:
                                         st.markdown("**Suggested Balanced Alternative:**")
                                         balanced = suggest_balanced_clause(finding)
                                         st.write(balanced)
-                                        
+
                                         if st.button("📋 Copy Suggestion", 
                                                    key=f"copy_{hash(req['text'])}"):
                                             st.toast("✅ Copied to clipboard!")
-                                    
+
                                     # Feedback mechanism
                                     feedback = st.radio(
                                         "Was this analysis helpful?",
                                         ["Yes", "No", "Partially"],
                                         key=f"feedback_{hash(req['text'])}"
                                     )
-                                    
+
                                     if feedback != "Yes":
                                         user_feedback = st.text_area(
                                             "How can we improve this analysis?",
                                             key=f"feedback_text_{hash(req['text'])}"
                                         )
-                                        
+
                                         if st.button("Submit Feedback", 
                                                    key=f"submit_{hash(req['text'])}"):
                                             agent._learn_from_feedback(
@@ -125,17 +126,17 @@ if uploaded_file:
                                                 user_feedback
                                             )
                                             st.success("Thank you! Your feedback helps improve future analyses.")
-                
+
                 with col2:
                     st.header("📈 Risk Summary")
-                    
+
                     # Risk distribution
                     risk_levels = {'High': 0, 'Medium': 0, 'Low': 0}
                     for req in analysis['requirements']:
                         findings = analyze_clause_bias(req['text'])
                         for finding in findings:
                             risk_levels[finding['risk_level']] += 1
-                    
+
                     # Display metrics
                     st.metric("High Risk Items", risk_levels['High'], 
                             delta=None, delta_color="inverse")
@@ -143,18 +144,18 @@ if uploaded_file:
                             delta=None, delta_color="inverse")
                     st.metric("Low Risk Items", risk_levels['Low'], 
                             delta=None, delta_color="off")
-                    
+
                     # Requirements breakdown
                     st.subheader("Requirements by Type")
                     for req_type, count in analysis['statistics']['by_type'].items():
                         st.write(f"- {req_type.title()}: {count}")
-                    
+
                     # Download report button
                     if st.button("📥 Download Full Report"):
                         st.markdown("Generating report...")
                         # TODO: Implement report generation
                         st.success("Report downloaded!")
-                        
+
         except Exception as e:
             st.error(f"An error occurred during analysis: {str(e)}")
         finally:

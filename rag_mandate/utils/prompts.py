@@ -6,8 +6,8 @@ MANDATE_PROMPT = """You are a highly precise assistant helping evaluate RFP docu
 
             Criteria to check:
             1. Is there any mention of **Years of Experience in Temporary staffing**? If yes, is the experience required less than 7 years?
-            2. Is there any mention of a **W-9 Form**?
-            3. Is there any mention of **Insurance Certificates**?
+            2. Is there any mention of a **W-9 Form** or **W-9**?
+            3. Is there any mention of **Insurance Certificates** or **Insurance** keyword?
             4. Is there any mention of **Company Length of Existence** (how long the company has existed)?
             5. Is there any mention of **Licenses, Certifications, or Registrations**?
 

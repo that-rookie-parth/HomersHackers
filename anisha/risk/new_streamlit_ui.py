@@ -1,11 +1,13 @@
 import os
 
+import fitz
 import numpy as np
 import streamlit as st
 from dotenv import load_dotenv
 from langchain.agents.format_scratchpad import format_log_to_str
 from langchain.tools.render import render_text_description
 from langchain_core.documents import Document
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -13,11 +15,24 @@ from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import END, START, StateGraph
 from rfp_agent import RFPAnalysisAgent
+from sentence_transformers import SentenceTransformer, util
 from typing_extensions import List, TypedDict
 from utils.data_ingestion import extract_text_from_pdf
 from utils.prompts import COMPLIANCE_PROMPT, MANDATE_PROMPT
 from utils.risky_clause import analyze_clause_risk
 from utils_2 import analyze_clause_bias, analyze_rfp_document, suggest_balanced_clause
+
+
+def highlight_text_in_pdf(pdf_path, output_path, highlights):
+    doc = fitz.open(pdf_path)
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        for text in highlights:
+            text_instances = page.search_for(text)
+            for inst in text_instances:
+                page.add_highlight_annot(inst)
+    doc.save(output_path)
+
 
 # Set wide mode and custom title
 st.set_page_config(page_title="ConsultAdd RFP Analyzer", page_icon="📄", layout="wide")
@@ -65,11 +80,12 @@ if uploaded_file:
 
             if analysis:
                 # Main UI with tabs
-                tab1, tab2, tab3 = st.tabs(
+                tab1, tab2, tab3, tab4 = st.tabs(
                     [
-                        "📋 Eligibility and Compliance Check",
-                        "🧾 Submission Checklist",
-                        "⚖️ Contract Risk Analysis",
+                        "Eligibility and Compliance Check",
+                        "Submission Checklist",
+                        "Contract Risk Analysis",
+                        "Actionable Insights",
                     ]
                 )
 
@@ -186,6 +202,10 @@ if uploaded_file:
                         st.markdown("-----------------------------")
                         st.markdown(result["answer"].content, unsafe_allow_html=True)
 
+                        st.markdown("### 📚 Sources Used")
+                        for i, source in enumerate(result["context"], 1):
+                            st.markdown(f"**Source {i}:**\n```text\n{source}\n```")
+
                 with tab2:
                     st.subheader("🧾 Submission Requirements Checklist")
                     st.markdown("Auto-extracted checklist from the RFP:")
@@ -261,6 +281,65 @@ if uploaded_file:
 
                         st.success("✅ Final Analysis: ")
                         st.markdown(agent_step.content)
+                with tab4:
+                    with st.spinner("Analyzing clauses for suggestions..."):
+
+                        rfp_text = extract_text_from_pdf(uploaded_file)
+
+                        splitter = RecursiveCharacterTextSplitter(
+                            chunk_size=512, chunk_overlap=20
+                        )
+
+                        chunks = [
+                            chunk.page_content.strip()
+                            for chunk in splitter.create_documents([rfp_text])
+                        ]
+
+                        model = SentenceTransformer("all-MiniLM-L6-v2")
+                        chunk_embeddings = model.encode(chunks, convert_to_tensor=True)
+
+                        reference_clauses = [
+                            "The Contractor may offer additional maintenance services if eligible.",
+                            "Future support services may enhance bid eligibility.",
+                            "Optional maintenance support may be provided to enhance bid competitiveness.",
+                        ]
+                        ref_embeddings = model.encode(
+                            reference_clauses, convert_to_tensor=True
+                        )
+
+                        threshold = 0.4
+                        matched_chunks = []
+                        for chunk, embedding in zip(chunks, chunk_embeddings):
+                            cosine_scores = util.cos_sim(embedding, ref_embeddings)
+                            max_score = cosine_scores.max().item()
+                            if max_score >= threshold:
+                                matched_chunks.append((chunk, max_score))
+
+                        improvement_prompt = PromptTemplate(
+                            input_variables=["clause"],
+                            template="""
+                                You are a proposal expert. Here is a contract clause that was identified as beneficial:
+            
+                                "{clause}"
+            
+                                Summarize the clause in simple language and explain what actions I can take to improve my proposal based on this clause.
+                                Provide clear, short, and actionable advice.
+                                """,
+                        )
+                        chain = improvement_prompt | llm | StrOutputParser()
+
+                        if matched_chunks:
+                            for clause, score in matched_chunks:
+                                advice = chain.invoke({"clause": clause})
+
+                                st.markdown(f"> {clause}")
+                                st.markdown("**💡 Proposal Advice:**")
+                                st.success(advice.strip())
+                                st.markdown("---")
+                        else:
+                            st.info(
+                                "No clauses were similar enough to the reference beneficial clauses."
+                            )
 
         except Exception as e:
             st.error(f"🚫 Error: {str(e)}")

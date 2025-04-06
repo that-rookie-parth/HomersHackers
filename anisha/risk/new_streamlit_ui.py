@@ -20,8 +20,7 @@ from typing_extensions import List, TypedDict
 from utils.data_ingestion import extract_text_from_pdf
 from utils.prompts import COMPLIANCE_PROMPT, MANDATE_PROMPT
 from utils.risky_clause import analyze_clause_risk
-from utils_2 import (analyze_clause_bias, analyze_rfp_document,
-                     suggest_balanced_clause)
+from utils_2 import analyze_clause_bias, analyze_rfp_document, suggest_balanced_clause
 
 AUDIT_INFO = {
     "Legal and Regulatory Info": {
@@ -128,17 +127,6 @@ st.markdown(
 
 # Sidebar settings
 with st.sidebar:
-    st.header("⚙️ Settings")
-    risk_threshold = st.slider(
-        "Risk Sensitivity",
-        0.0,
-        1.0,
-        0.7,
-        help="Lower values = more risk items detected",
-    )
-    show_suggestions = st.checkbox("💡 Show Balanced Alternatives", True)
-    show_entities = st.checkbox("📍 Highlight Named Entities", True)
-    st.markdown("---")
     uploaded_file = st.file_uploader("📤 Upload RFP Document (PDF)", type=["pdf"])
 
 # Init agent
@@ -221,7 +209,9 @@ if uploaded_file:
                         for section, items in audit_info.items():
                             formatted.append(f"## {section}")
                             for item, details in items.items():
-                                available = "✅ Yes" if details["Available"] else "❌ No"
+                                available = (
+                                    "✅ Yes" if details["Available"] else "❌ No"
+                                )
                                 formatted.append(f"- **{item}**: {available}")
                                 formatted.append(f"  - Details: {details['Details']}")
                             formatted.append("")  # Add space between sections

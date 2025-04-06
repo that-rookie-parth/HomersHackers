@@ -4,7 +4,6 @@ from io import BytesIO
 import numpy as np
 import tempfile
 
-# 👇 Your modules
 from working_checklist import (
     extract_text_from_pdf,
     chunk_and_embed,
@@ -27,6 +26,12 @@ st.set_page_config(page_title="📑 RFP Checklist Generator", layout="wide")
 st.title("📑 AI-Powered RFP Submission Checklist Generator")
 
 tabs = st.tabs(["📤 Upload & Process", "🧠 Retrieved Context", "✅ Checklist Output", "🔍 Agent Logs"])
+
+rfp_text = ""
+
+# Add this near the top of the file, after the imports
+if 'intermediate_steps' not in st.session_state:
+    st.session_state.intermediate_steps = []
 
 with tabs[0]:
     st.subheader("📤 Upload RFP PDF")
@@ -107,14 +112,14 @@ with tabs[2]:
         while True:
             agent_step = agent_chain.invoke({
                 "input": context,
-                "agent_scratchpad": intermediate_steps,
+                "agent_scratchpad": st.session_state.intermediate_steps,
             })
 
             if isinstance(agent_step, AgentAction):
                 tool_name = agent_step.tool
                 tool_to_use = next(t for t in tools if t.name == tool_name)
                 observation = tool_to_use.func(agent_step.tool_input)
-                intermediate_steps.append((agent_step, str(observation)))
+                st.session_state.intermediate_steps.append((agent_step, str(observation)))
 
             elif isinstance(agent_step, AgentFinish):
                 output = agent_step.return_values["output"]
@@ -146,15 +151,13 @@ with tabs[2]:
                 st.markdown(f"[🔗 Link]({item['Link']})")
                 st.divider()
 
-
-
-with tabs[3]:
-    st.subheader("🔍 Agent Logs (ReAct Reasoning)")
-    if "context" in st.session_state and intermediate_steps:
-        for i, (action, obs) in enumerate(intermediate_steps):
-            st.markdown(f"**Step {i+1}**")
-            st.markdown(f"🔧 Tool: `{action.tool}`")
-            st.markdown(f"📥 Input: `{action.tool_input}`")
-            st.markdown(f"📤 Output: `{obs}`")
-    else:
-        st.info("Logs will show after processing the RFP.")
+    with tabs[3]:
+        st.subheader("🔍 Agent Logs (ReAct Reasoning)")
+        if "context" in st.session_state and st.session_state.intermediate_steps:
+            for i, (action, obs) in enumerate(st.session_state.intermediate_steps):
+                st.markdown(f"**Step {i+1}**")
+                st.markdown(f"🔧 Tool: `{action.tool}`")
+                st.markdown(f"📥 Input: `{action.tool_input}`")
+                st.markdown(f"📤 Output: `{obs}`")
+        else:
+            st.info("Logs will show after processing the RFP.")

@@ -6,11 +6,12 @@ from dotenv import load_dotenv
 from langchain_core.documents import Document
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_openai import ChatOpenAI
+# from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import END, START, StateGraph
 from rfp_agent import RFPAnalysisAgent
 from typing_extensions import List, TypedDict
+from langchain_groq import ChatGroq
 from utils.data_ingestion import extract_text_from_pdf
 from utils.prompts import COMPLIANCE_PROMPT, MANDATE_PROMPT
 from utils_2 import analyze_clause_bias, analyze_rfp_document, suggest_balanced_clause
@@ -79,10 +80,15 @@ if uploaded_file:
 
                     load_dotenv()
 
-                    llm = ChatOpenAI(
-                        model="gpt-4o-mini",
-                        temperature=0,
-                        api_key=os.environ.get("OPENAI_API_KEY"),
+                    # llm = ChatOpenAI(
+                    #     model="gpt-4o-mini",
+                    #     temperature=0,
+                    #     api_key=os.environ.get("OPENAI_API_KEY"),
+                    # )
+                    llm = ChatGroq(
+                        model="qwen-2.5-32b",
+                        temperature=0.25,
+                        api_key=os.environ.get("GROQ_API_KEY"),
                     )
                     embeddings_model = HuggingFaceEmbeddings(
                         model_name="sentence-transformers/all-mpnet-base-v2"
@@ -192,25 +198,35 @@ if uploaded_file:
                     ]
                     for item in checklist_items:
                         st.checkbox(item, value=False)
-
+                
                 with tab3:
                     st.subheader("⚖️ Risky Clauses & Suggestions")
 
+                    # Initialize risk levels
                     risk_levels = {'High': 0, 'Medium': 0, 'Low': 0}
+                    
+                    # Analyze all requirements and count risk levels
                     for req in analysis['requirements']:
                         findings = analyze_clause_bias(req['text'])
                         for finding in findings:
                             risk_levels[finding['risk_level']] += 1
 
+                    # Display Risk Summary
                     st.markdown("### 🔍 Risk Summary")
-                    st.metric("🔴 High Risk Items", risk_levels["High"])
-                    st.metric("🟡 Medium Risk Items", risk_levels["Medium"])
-                    st.metric("🟢 Low Risk Items", risk_levels["Low"])
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("🔴 High Risk Items", risk_levels["High"])
+                    with col2:
+                        st.metric("🟡 Medium Risk Items", risk_levels["Medium"])
+                    with col3:
+                        st.metric("🟢 Low Risk Items", risk_levels["Low"])
 
                     st.markdown("---")
 
+                    # Loop through each requirement and show detailed risks
                     for req in analysis['requirements']:
                         biased_findings = analyze_clause_bias(req['text'])
+                        
                         if biased_findings:
                             with st.expander(f"🚨 Risk in Requirement {req['id']}"):
                                 st.markdown("**🔹 Original Clause:**")
@@ -224,19 +240,22 @@ if uploaded_file:
                                     }.get(finding['risk_level'], '⚪')
 
                                     st.markdown(f"**Risk Level:** {color} {finding['risk_level']}")
-                                    st.markdown(f"**Issue Type:** {finding['type'].replace('_', ' ').title()}")
+                                    st.markdown(f"**Issue Type:** `{finding['type'].replace('_', ' ').title()}`")
 
+                                    # Show suggestion if enabled
                                     if show_suggestions:
                                         st.markdown("**💡 Suggested Balanced Alternative:**")
                                         st.code(suggest_balanced_clause(finding), language='markdown')
 
-                                        st.button("📋 Copy", key=f"copy_{hash(req['text'])}")
+                                        st.button("📋 Copy", key=f"copy_{hash(req['text'])}_{hash(finding['type'])}")
 
+                                    # Feedback option
                                     st.radio(
                                         "Was this helpful?",
                                         ["Yes", "No", "Partially"],
-                                        key=f"feedback_{hash(req['text'])}"
+                                        key=f"feedback_{hash(req['text'])}_{hash(finding['type'])}"
                                     )
+
 
         except Exception as e:
             st.error(f"🚫 Error: {str(e)}")

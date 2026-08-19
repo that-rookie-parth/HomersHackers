@@ -1,8 +1,10 @@
+from pathlib import Path
+
 from util.chunking import chunk_document
 from util.data_ingestion import clean_rfp_text, extract_text_from_pdf
 from util.logger_config import get_logger
 
-RFP_PATH = "/home/kparth/HomersHackers/parth/data/ELIGIBLE_RFP_2.pdf"
+RFP_PATH = Path(__file__).resolve().parent / "data" / "ELIGIBLE_RFP_2.pdf"
 
 logger = get_logger("rfp_pipeline")
 

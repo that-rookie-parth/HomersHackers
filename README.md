@@ -45,32 +45,65 @@ four focused views:
 
 ```mermaid
 flowchart TB
-    input[Upload RFP PDF] --> extract[Extract and clean text<br/>PyMuPDF + pdfplumber]
-    extract --> chunks[Split into semantic chunks]
-    chunks --> retrieve[Embed and retrieve context<br/>Hugging Face embeddings]
+    subgraph ingestion[1. Document ingestion]
+        direction LR
+        input[Upload RFP PDF]
+        extract[Extract and clean text<br/>PyMuPDF + pdfplumber]
+        parse[Identify sections and<br/>mandatory requirements]
+        chunks[Recursive text splitting<br/>512-character chunks]
+        retrieve[Embed and retrieve context<br/>Hugging Face + cosine similarity]
 
-    subgraph workflow[Analysis workflow]
-        retrieve --> eligibility[Eligibility and compliance<br/>LangGraph + Groq]
-        retrieve --> checklist[Submission requirements<br/>checklist tools + Groq]
-        retrieve --> risk[Contract risk analysis<br/>pattern matching + Groq]
-        retrieve --> insights[Actionable insights<br/>semantic matching + Groq]
+        input --> extract
+        extract --> parse
+        parse --> chunks
+        chunks --> retrieve
     end
 
-    eligibility --> results[Tabbed Streamlit results]
+    company[ConsultAdd company profile<br/>legal • experience • documents]
+
+    subgraph workflow[2. Analysis workflow]
+        direction LR
+        eligibility[Eligibility and compliance<br/>retrieve → audit → answer<br/>LangGraph + Groq]
+        checklist[Submission checklist prototype<br/>format • forms • attachments]
+        risk[Contract risk review<br/>retrieve clauses → assess risk<br/>rules + Groq]
+        insights[Actionable insights<br/>match useful clauses → advice<br/>sentence transformers + Groq]
+    end
+
+    subgraph presentation[3. Proposal workspace]
+        direction LR
+        results[Tabbed Streamlit results<br/>evidence • risks • next steps]
+        review{Human review<br/>bid readiness and response planning}
+
+        results --> review
+    end
+
+    retrieve --> eligibility
+    retrieve --> checklist
+    retrieve --> risk
+    retrieve --> insights
+    company --> eligibility
+
+    eligibility --> results
     checklist --> results
     risk --> results
     insights --> results
 
     classDef entry fill:#0969DA,stroke:#79C0FF,color:#FFFFFF,stroke-width:2px
     classDef process fill:#334155,stroke:#CBD5E1,color:#FFFFFF,stroke-width:2px
+    classDef decision fill:#854D0E,stroke:#FACC15,color:#FFFFFF,stroke-width:2px
     classDef action fill:#6D28D9,stroke:#C4B5FD,color:#FFFFFF,stroke-width:2px
+    classDef service fill:#166534,stroke:#86EFAC,color:#FFFFFF,stroke-width:2px
     classDef output fill:#9F1239,stroke:#FDA4AF,color:#FFFFFF,stroke-width:2px
 
     class input entry
-    class extract,chunks,retrieve process
+    class extract,parse,chunks,retrieve process
+    class review decision
     class eligibility,checklist,risk,insights action
+    class company service
     class results output
+    style ingestion fill:#161B22,stroke:#8B949E,color:#FFFFFF,stroke-width:2px
     style workflow fill:#161B22,stroke:#8B949E,color:#FFFFFF,stroke-width:2px
+    style presentation fill:#161B22,stroke:#8B949E,color:#FFFFFF,stroke-width:2px
 ```
 
 The main demo combines deterministic document parsing with semantic retrieval and

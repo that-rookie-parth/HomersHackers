@@ -1,14 +1,12 @@
 import openai
 import json
+import os
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import tiktoken
 from typing import List
 from data_ingestion import extract_text_from_pdf, clean_rfp_text
 from langchain_huggingface import HuggingFaceEmbeddings
-
-openai.api_key = "REMOVED_OPENAI_API_KEY"
-
 
 def chunk_text(text, max_tokens=500):
     tokenizer = tiktoken.get_encoding("cl100k_base")
@@ -78,7 +76,7 @@ Format:
 Status: ...
 Reason: ...
 """
-    client = openai.OpenAI(api_key="REMOVED_OPENAI_API_KEY")  
+    client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],

@@ -1,4 +1,5 @@
 import google.generativeai as genai
+import os
 import re
 
 def chunk_document(document, chunk_size=450, overlap=50, model_name="models/text-embedding-001"):
@@ -15,7 +16,7 @@ def chunk_document(document, chunk_size=450, overlap=50, model_name="models/text
         list: A list of text chunks.
     """
 
-    genai.configure(api_key="REMOVED_GOOGLE_API_KEY") # Replace with your API key.
+    genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
     model = genai.GenerativeModel(model_name)
 
     # Simple heuristic to approximate token count. Google API does not provide a direct tokenization method.

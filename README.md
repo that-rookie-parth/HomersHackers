@@ -133,7 +133,7 @@ vendor-friendliness scoring, and PDF report export.
 ### 1. Clone and create a virtual environment
 
 ```bash
-git clone https://github.com/that-rookie-parth/HomersHackers.git
+git clone https://github.com/parthkulshreshtha/HomersHackers.git
 cd HomersHackers
 python3 -m venv .venv
 source .venv/bin/activate
